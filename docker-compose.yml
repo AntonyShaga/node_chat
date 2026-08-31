@@ -1,0 +1,21 @@
+services:
+  chat-postgres:
+    image: postgres:16
+    container_name: node-chat-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: node_chat
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - node_chat_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d node_chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  node_chat_postgres_data:
