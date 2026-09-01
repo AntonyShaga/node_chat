@@ -5,6 +5,7 @@ export type ChatProfile = {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  identifier?: string;
 };
 
 export type RoomMember = {
@@ -69,4 +70,9 @@ export type RoomMemberDetails = RoomMember & {
 
 export type ChatRoomDetails = Omit<ChatRoom, 'members' | '_count'> & {
   members: RoomMemberDetails[];
+};
+export type MessagesPage = {
+  items: ChatMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
 };

@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { ChatProfilesService } from './chat-profiles.service';
 import { CreateChatProfileDto } from './dto/create-chat-profile.dto';
 // eslint-disable-next-line max-len
 import { SearchChatProfilesQueryDto } from './dto/search-chat-profiles-query.dto';
+import { UpdateChatProfileDto } from './dto/update-chat-profile.dto';
 
 @Controller('chat-profiles')
 export class ChatProfilesController {
@@ -30,5 +32,13 @@ export class ChatProfilesController {
   @Get()
   findAll(@Query() query: SearchChatProfilesQueryDto) {
     return this.chatProfilesService.findAll(query.search);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() data: UpdateChatProfileDto,
+  ) {
+    return this.chatProfilesService.update(id, data);
   }
 }

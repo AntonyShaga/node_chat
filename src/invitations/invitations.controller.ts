@@ -11,10 +11,14 @@ import {
 import { AcceptInvitationDto } from './dto/accept-invitation.dto';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { InvitationsService } from './invitations.service';
+import { ChatGateway } from '../messages/chat.gateway';
 
 @Controller()
 export class InvitationsController {
-  constructor(private readonly invitationsService: InvitationsService) {}
+  constructor(
+    private readonly invitationsService: InvitationsService,
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   @Post('rooms/:roomId/invitations')
   create(
@@ -25,11 +29,15 @@ export class InvitationsController {
   }
 
   @Post('room-invitations/:invitationId/accept')
-  accept(
+  async accept(
     @Param('invitationId', ParseUUIDPipe) invitationId: string,
     @Body() data: AcceptInvitationDto,
   ) {
-    return this.invitationsService.accept(invitationId, data);
+    const invitation = await this.invitationsService.accept(invitationId, data);
+
+    this.chatGateway.notifyRoomMembersChanged(invitation.roomId);
+
+    return invitation;
   }
 
   @Get('room-invitations')

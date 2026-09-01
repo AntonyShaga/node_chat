@@ -15,9 +15,13 @@ import { JoinRoomDto } from './dto/join-room.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { RoomsService } from './rooms.service';
 import { UpdateRoomDto } from './dto/update-room.dto';
+import { ChatGateway } from '../messages/chat.gateway';
 @Controller('rooms')
 export class RoomsController {
-  constructor(private readonly roomsService: RoomsService) {}
+  constructor(
+    private readonly roomsService: RoomsService,
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   @Post()
   create(@Body() data: CreateRoomDto) {
@@ -38,8 +42,15 @@ export class RoomsController {
   }
 
   @Post(':id/join')
-  join(@Param('id', ParseUUIDPipe) id: string, @Body() data: JoinRoomDto) {
-    return this.roomsService.join(id, data);
+  async join(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() data: JoinRoomDto,
+  ) {
+    const member = await this.roomsService.join(id, data);
+
+    this.chatGateway.notifyRoomMembersChanged(id);
+
+    return member;
   }
 
   @Patch(':id')
@@ -53,10 +64,14 @@ export class RoomsController {
   }
 
   @Delete(':id/members/:userId')
-  leave(
+  async leave(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('userId', ParseUUIDPipe) userId: string,
   ) {
-    return this.roomsService.leave(id, userId);
+    const member = await this.roomsService.leave(id, userId);
+
+    this.chatGateway.notifyRoomMembersChanged(id);
+
+    return member;
   }
 }

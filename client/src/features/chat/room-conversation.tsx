@@ -1,9 +1,17 @@
 'use client';
 
-import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import { joinRoom } from '@/lib/api';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ChatProfile, ChatRoom } from '@/types/chat';
 
 import { useRoomMessages } from './use-room-messages';
@@ -13,14 +21,25 @@ type RoomConversationProps = {
   room: ChatRoom;
 };
 
-export function RoomConversation({ profile, room }: RoomConversationProps) {
-  const [text, setText] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+type ScrollSnapshot = {
+  scrollHeight: number;
+  scrollTop: number;
+};
 
+export function RoomConversation({ profile, room }: RoomConversationProps) {
   const queryClient = useQueryClient();
+
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const topSentinelRef = useRef<HTMLDivElement | null>(null);
+  const initialScrollCompletedRef = useRef(false);
+  const isNearBottomRef = useRef(true);
+  const scrollSnapshotRef = useRef<ScrollSnapshot | null>(null);
+
+  const [text, setText] = useState('');
 
   const joinMutation = useMutation({
     mutationFn: () => joinRoom(room.id, profile.id),
+
     onSuccess: () =>
       queryClient.invalidateQueries({
         queryKey: ['rooms', profile.id],
@@ -33,6 +52,9 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
     messages,
     isLoading,
     historyError,
+    hasOlderMessages,
+    isLoadingOlderMessages,
+    loadOlderMessages,
     isConnected,
     socketError,
     sendMessage,
@@ -42,15 +64,109 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
     enabled: isMember,
   });
 
+  const loadOlder = useCallback(async () => {
+    const container = scrollContainerRef.current;
+
+    if (
+      !container ||
+      !hasOlderMessages ||
+      isLoadingOlderMessages ||
+      scrollSnapshotRef.current
+    ) {
+      return;
+    }
+
+    scrollSnapshotRef.current = {
+      scrollHeight: container.scrollHeight,
+      scrollTop: container.scrollTop,
+    };
+
+    try {
+      await loadOlderMessages();
+    } catch {
+      scrollSnapshotRef.current = null;
+    }
+  }, [hasOlderMessages, isLoadingOlderMessages, loadOlderMessages]);
+
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+
+    if (!container || isLoading) {
+      return;
+    }
+
+    const snapshot = scrollSnapshotRef.current;
+
+    if (snapshot) {
+      const addedHeight = container.scrollHeight - snapshot.scrollHeight;
+
+      container.scrollTop = snapshot.scrollTop + addedHeight;
+      scrollSnapshotRef.current = null;
+
+      return;
+    }
+
+    if (!initialScrollCompletedRef.current) {
+      container.scrollTop = container.scrollHeight;
+      initialScrollCompletedRef.current = true;
+      isNearBottomRef.current = true;
+
+      return;
+    }
+
+    if (isNearBottomRef.current) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, [isLoading, messages.length]);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: 'smooth',
-    });
-  }, [messages]);
+    const container = scrollContainerRef.current;
+    const sentinel = topSentinelRef.current;
+
+    if (!container || !sentinel || !initialScrollCompletedRef.current) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          void loadOlder();
+        }
+      },
+      {
+        root: container,
+        rootMargin: '120px 0px 0px',
+        threshold: 0,
+      },
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [loadOlder, messages.length]);
+
+  function handleScroll() {
+    const container = scrollContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+
+    isNearBottomRef.current = distanceFromBottom < 120;
+  }
 
   function submitMessage() {
     if (sendMessage(text)) {
       setText('');
+      isNearBottomRef.current = true;
     }
   }
 
@@ -68,7 +184,7 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
 
   if (!isMember) {
     return (
-      <div className="flex flex-1 items-center justify-center p-8 text-center">
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-8 text-center">
         <div>
           <h2 className="text-xl font-semibold">Join this room</h2>
 
@@ -77,7 +193,7 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
           </p>
 
           <button
-            className="mt-6 rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground disabled:opacity-50"
+            className="mt-6 rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
             disabled={joinMutation.isPending}
             onClick={() => joinMutation.mutate()}
             type="button"
@@ -96,49 +212,83 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
   }
 
   return (
-    <>
-      <div className="flex-1 overflow-y-auto px-8 py-6">
-        {isLoading && (
-          <p className="text-muted-foreground">Loading messages...</p>
-        )}
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-6 [scrollbar-gutter:stable] sm:px-8"
+        onScroll={handleScroll}
+        ref={scrollContainerRef}
+      >
+        <div className="mx-auto max-w-4xl">
+          <div ref={topSentinelRef} />
 
-        {(historyError || socketError) && (
-          <p className="text-destructive">{historyError ?? socketError}</p>
-        )}
+          {isLoadingOlderMessages && (
+            <p className="pb-5 text-center text-sm text-muted-foreground">
+              Loading older messages...
+            </p>
+          )}
 
-        <div className="mx-auto max-w-4xl space-y-6">
-          {messages.map((message) => (
-            <article className="flex gap-4" key={message.id}>
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted font-semibold">
-                {message.authorName.slice(0, 2).toUpperCase()}
-              </div>
+          {!hasOlderMessages && messages.length > 0 && (
+            <p className="pb-5 text-center text-xs text-muted-foreground">
+              Beginning of conversation
+            </p>
+          )}
 
-              <div className="min-w-0">
-                <div className="flex items-baseline gap-3">
-                  <h3 className="font-semibold">{message.authorName}</h3>
+          {isLoading && (
+            <p className="text-muted-foreground">Loading messages...</p>
+          )}
 
-                  <time className="text-xs text-muted-foreground">
-                    {new Date(message.createdAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </time>
+          {(historyError || socketError) && (
+            <p className="text-destructive">{historyError ?? socketError}</p>
+          )}
+
+          {!isLoading && messages.length === 0 && (
+            <div className="py-12 text-center text-muted-foreground">
+              <p>No messages yet.</p>
+
+              <p className="mt-1 text-sm">
+                Send the first message in this room.
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-6">
+            {messages.map((message) => (
+              <article className="flex min-w-0 gap-4" key={message.id}>
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted font-semibold">
+                  {message.authorName.slice(0, 2).toUpperCase()}
                 </div>
 
-                <p className="mt-1 wrap-break-word text-muted-foreground">
-                  {message.text}
-                </p>
-              </div>
-            </article>
-          ))}
-          <div ref={messagesEndRef} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <h3 className="max-w-full truncate font-semibold">
+                      {message.authorName}
+                    </h3>
+
+                    <time className="shrink-0 text-xs text-muted-foreground">
+                      {new Date(message.createdAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </time>
+                  </div>
+
+                  <p className="mt-1 break-words whitespace-pre-wrap text-muted-foreground">
+                    {message.text}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       </div>
 
-      <form className="border-t bg-card p-6" onSubmit={handleSubmit}>
-        <div className="mx-auto flex max-w-4xl gap-3">
+      <form
+        className="shrink-0 border-t bg-card px-6 py-4 sm:px-8"
+        onSubmit={handleSubmit}
+      >
+        <div className="mx-auto flex max-w-4xl items-end gap-3">
           <textarea
-            className="max-h-36 min-h-12 min-w-0 flex-1 resize-none rounded-xl border bg-input px-4 py-3 outline-none focus:ring-2 focus:ring-ring/30"
+            className="max-h-36 min-h-12 min-w-0 flex-1 resize-none rounded-xl border bg-input px-4 py-3 outline-none transition focus:ring-2 focus:ring-ring/30"
             disabled={!isConnected}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={handleKeyDown}
@@ -148,7 +298,7 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
           />
 
           <button
-            className="rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground disabled:opacity-50"
+            className="min-h-12 rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!isConnected || !text.trim()}
             type="submit"
           >
@@ -162,6 +312,6 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
             : 'Connecting to room...'}
         </p>
       </form>
-    </>
+    </div>
   );
 }

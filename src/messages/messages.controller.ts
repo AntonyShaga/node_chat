@@ -29,6 +29,6 @@ export class MessagesController {
     @Param('roomId', ParseUUIDPipe) roomId: string,
     @Query() query: MessageHistoryQueryDto,
   ) {
-    return this.messagesService.findHistory(roomId, query.userId);
+    return this.messagesService.findHistory(roomId, query);
   }
 }

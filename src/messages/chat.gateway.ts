@@ -75,4 +75,9 @@ export class ChatGateway {
       );
     }
   }
+  notifyRoomMembersChanged(roomId: string) {
+    this.server.emit('room:members-changed', {
+      roomId,
+    });
+  }
 }

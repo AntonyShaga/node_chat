@@ -15,7 +15,15 @@ export class PrismaService extends PrismaClient implements PrismaLifecycle {
       connectionString,
     });
 
-    super({ adapter });
+    super({
+      adapter,
+      omit: {
+        chatProfile: {
+          email: true,
+          phone: true,
+        },
+      },
+    });
   }
 
   async onModuleInit(): Promise<void> {

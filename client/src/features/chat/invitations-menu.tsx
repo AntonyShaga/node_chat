@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { getPendingInvitations, respondToInvitation } from '@/lib/api';
 
@@ -16,6 +16,7 @@ type InvitationResponse = {
 
 export function InvitationsMenu({ profileId }: InvitationsMenuProps) {
   const queryClient = useQueryClient();
+  const menuRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   const invitationsQuery = useQuery({
@@ -39,32 +40,84 @@ export function InvitationsMenu({ profileId }: InvitationsMenuProps) {
     },
   });
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (!menuRef.current?.contains(target)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
   const invitations = invitationsQuery.data ?? [];
 
   return (
-    <div className="relative">
+    <div className="relative" ref={menuRef}>
       <button
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
         aria-label="Invitations"
-        className="relative rounded-xl p-3 hover:bg-muted"
+        className="relative rounded-xl p-3 text-muted-foreground transition hover:bg-muted hover:text-foreground"
         onClick={() => setIsOpen((current) => !current)}
         type="button"
       >
-        <span aria-hidden="true">🔔</span>
+        <svg
+          aria-hidden="true"
+          className="size-5"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <path
+            d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM13.73 21a2 2 0 0 1-3.46 0"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.75"
+          />
+        </svg>
 
         {invitations.length > 0 && (
-          <span className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-destructive text-xs text-white">
+          <span className="absolute top-0 right-0 flex size-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
             {invitations.length}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <section className="absolute top-12 left-0 z-40 w-80 rounded-2xl border bg-popover p-4 shadow-xl">
+        <section
+          aria-label="Pending invitations"
+          className="absolute top-full left-1/2 z-50 mt-3 w-80 max-w-[calc(100vw-2rem)]
+          -translate-x-1/4 rounded-2xl border bg-popover p-4 text-popover-foreground shadow-xl"
+        >
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Invitations</h2>
 
             <button
               aria-label="Close invitations"
+              className="rounded-lg px-2 py-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
               onClick={() => setIsOpen(false)}
               type="button"
             >
@@ -82,7 +135,7 @@ export function InvitationsMenu({ profileId }: InvitationsMenuProps) {
             </p>
           )}
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 max-h-80 space-y-3 overflow-y-auto">
             {invitations.map((invitation) => (
               <article className="rounded-xl border p-4" key={invitation.id}>
                 <p className="font-medium">#{invitation.room.name}</p>
@@ -107,7 +160,7 @@ export function InvitationsMenu({ profileId }: InvitationsMenuProps) {
                   </button>
 
                   <button
-                    className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50"
+                    className="rounded-lg border px-3 py-2 text-sm transition hover:bg-muted disabled:opacity-50"
                     disabled={responseMutation.isPending}
                     onClick={() =>
                       responseMutation.mutate({

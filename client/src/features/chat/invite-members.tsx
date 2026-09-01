@@ -8,9 +8,14 @@ import { createRoomInvitation, searchChatProfiles } from '@/lib/api';
 type InviteMembersProps = {
   roomId: string;
   inviterId: string;
+  existingMemberIds?: string[];
 };
 
-export function InviteMembers({ roomId, inviterId }: InviteMembersProps) {
+export function InviteMembers({
+  roomId,
+  inviterId,
+  existingMemberIds = [],
+}: InviteMembersProps) {
   const [search, setSearch] = useState('');
   const [invitedUsers, setInvitedUsers] = useState(() => new Set<string>());
 
@@ -25,6 +30,7 @@ export function InviteMembers({ roomId, inviterId }: InviteMembersProps) {
   const invitationMutation = useMutation({
     mutationFn: (recipientId: string) =>
       createRoomInvitation(roomId, inviterId, recipientId),
+
     onSuccess: (_, recipientId) => {
       setInvitedUsers((currentUsers) => {
         const nextUsers = new Set(currentUsers);
@@ -37,34 +43,39 @@ export function InviteMembers({ roomId, inviterId }: InviteMembersProps) {
   });
 
   const profiles = (profilesQuery.data ?? []).filter(
-    (profile) => profile.id !== inviterId,
+    (profile) =>
+      profile.id !== inviterId && !existingMemberIds.includes(profile.id),
   );
 
   return (
-    <section className="mt-8 border-t pt-8">
-      <h3 className="text-lg font-semibold">Invite members</h3>
+    <section>
+      <h3 className="font-medium">Invite members</h3>
 
       <p className="mt-1 text-sm text-muted-foreground">
         Search for a chat profile by username.
       </p>
 
       <input
-        className="mt-4 w-full rounded-xl border bg-input px-4 py-3 outline-none focus:ring-2 focus:ring-ring/30"
+        className="mt-4 w-full rounded-xl border bg-input px-4 py-3 outline-none transition focus:ring-2 focus:ring-ring/30"
         onChange={(event) => setSearch(event.target.value)}
         placeholder="Search users"
         value={search}
       />
 
-      <div className="mt-4 max-h-48 space-y-2 overflow-y-auto">
+      {profilesQuery.isFetching && (
+        <p className="mt-3 text-sm text-muted-foreground">Searching...</p>
+      )}
+
+      <div className="mt-4 max-h-56 space-y-2 overflow-y-auto pr-2">
         {profiles.map((profile) => {
           const isInvited = invitedUsers.has(profile.id);
 
           return (
-            <div
+            <article
               className="flex items-center gap-3 rounded-xl border p-3"
               key={profile.id}
             >
-              <div className="flex size-10 items-center justify-center rounded-full bg-muted font-semibold">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted font-semibold">
                 {profile.displayName.slice(0, 2).toUpperCase()}
               </div>
 
@@ -80,19 +91,17 @@ export function InviteMembers({ roomId, inviterId }: InviteMembersProps) {
               >
                 {isInvited ? 'Invited' : 'Invite'}
               </button>
-            </div>
+            </article>
           );
         })}
       </div>
 
-      {profilesQuery.isFetching && (
-        <p className="mt-3 text-sm text-muted-foreground">Searching...</p>
-      )}
-
       {normalizedSearch.length >= 2 &&
         !profilesQuery.isFetching &&
         profiles.length === 0 && (
-          <p className="mt-3 text-sm text-muted-foreground">No users found</p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            No available users found
+          </p>
         )}
 
       {invitationMutation.error && (

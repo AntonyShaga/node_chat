@@ -1,9 +1,9 @@
 import type {
-  ChatMessage,
   ChatProfile,
   ChatProfileSummary,
   ChatRoom,
   ChatRoomDetails,
+  MessagesPage,
   RoomInvitation,
   RoomMember,
 } from '@/types/chat';
@@ -14,17 +14,21 @@ type ApiError = {
   message?: string | string[];
 };
 
+export type CreateChatProfileInput = {
+  displayName: string;
+  email?: string;
+  phone?: string;
+};
+
 export async function createChatProfile(
-  displayName: string,
+  input: CreateChatProfileInput,
 ): Promise<ChatProfile> {
   const response = await fetch(`${API_URL}/chat-profiles`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      displayName,
-    }),
+    body: JSON.stringify(input),
   });
 
   if (!response.ok) {
@@ -33,7 +37,7 @@ export async function createChatProfile(
       ? error.message.join(', ')
       : error.message;
 
-    throw new Error(message ?? 'Failed to create chat profile');
+    throw new Error(message ?? 'Failed to open chat profile');
   }
 
   return response.json() as Promise<ChatProfile>;
@@ -53,22 +57,39 @@ export async function getRooms(userId: string): Promise<ChatRoom[]> {
   return response.json() as Promise<ChatRoom[]>;
 }
 
+type GetMessagesOptions = {
+  before?: string;
+  limit?: number;
+};
+
 export async function getMessages(
   roomId: string,
   userId: string,
-): Promise<ChatMessage[]> {
+  options: GetMessagesOptions = {},
+): Promise<MessagesPage> {
   const search = new URLSearchParams({
     userId,
+    limit: String(options.limit ?? 30),
   });
+
+  if (options.before) {
+    search.set('before', options.before);
+  }
 
   const response = await fetch(`${API_URL}/rooms/${roomId}/messages?${search}`);
 
   if (!response.ok) {
-    throw new Error('Failed to load messages');
+    const error = (await response.json()) as ApiError;
+    const message = Array.isArray(error.message)
+      ? error.message.join(', ')
+      : error.message;
+
+    throw new Error(message ?? 'Failed to load messages');
   }
 
-  return response.json() as Promise<ChatMessage[]>;
+  return response.json() as Promise<MessagesPage>;
 }
+
 export async function joinRoom(
   roomId: string,
   userId: string,
@@ -212,6 +233,7 @@ export async function createRoomInvitation(
     throw new Error(message ?? 'Failed to invite user');
   }
 }
+
 export async function getPendingInvitations(
   recipientId: string,
 ): Promise<RoomInvitation[]> {
@@ -270,4 +292,30 @@ export async function getRoomDetails(
   }
 
   return response.json() as Promise<ChatRoomDetails>;
+}
+
+export async function updateChatProfile(
+  profileId: string,
+  displayName: string,
+): Promise<ChatProfile> {
+  const response = await fetch(`${API_URL}/chat-profiles/${profileId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      displayName,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = (await response.json()) as ApiError;
+    const message = Array.isArray(error.message)
+      ? error.message.join(', ')
+      : error.message;
+
+    throw new Error(message ?? 'Failed to update profile');
+  }
+
+  return response.json() as Promise<ChatProfile>;
 }

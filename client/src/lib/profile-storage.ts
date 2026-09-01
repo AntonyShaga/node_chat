@@ -1,16 +1,18 @@
 import type { ChatProfile } from '@/types/chat';
 
-const PROFILE_STORAGE_KEY = 'node-chat-profile';
+const PROFILE_STORAGE_KEY = 'node-chat-session-profile';
+const LEGACY_PROFILE_STORAGE_KEY = 'node-chat-profile';
 const PROFILE_CHANGED_EVENT = 'node-chat-profile-changed';
 
 export function saveChatProfile(profile: ChatProfile) {
-  localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  sessionStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  localStorage.removeItem(LEGACY_PROFILE_STORAGE_KEY);
 
   window.dispatchEvent(new Event(PROFILE_CHANGED_EVENT));
 }
 
 export function getProfileSnapshot() {
-  return localStorage.getItem(PROFILE_STORAGE_KEY);
+  return sessionStorage.getItem(PROFILE_STORAGE_KEY);
 }
 
 export function getServerProfileSnapshot() {
@@ -18,11 +20,9 @@ export function getServerProfileSnapshot() {
 }
 
 export function subscribeToProfile(callback: () => void) {
-  window.addEventListener('storage', callback);
   window.addEventListener(PROFILE_CHANGED_EVENT, callback);
 
   return () => {
-    window.removeEventListener('storage', callback);
     window.removeEventListener(PROFILE_CHANGED_EVENT, callback);
   };
 }
@@ -38,7 +38,10 @@ export function parseChatProfile(value: string | null): ChatProfile | null {
     return null;
   }
 }
+
 export function clearChatProfile() {
-  localStorage.removeItem(PROFILE_STORAGE_KEY);
+  sessionStorage.removeItem(PROFILE_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_PROFILE_STORAGE_KEY);
+
   window.dispatchEvent(new Event(PROFILE_CHANGED_EVENT));
 }

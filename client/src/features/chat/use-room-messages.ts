@@ -1,20 +1,28 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 import { getMessages } from '@/lib/api';
-import type { ChatMessage } from '@/types/chat';
+import type { ChatMessage, MessagesPage } from '@/types/chat';
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL ?? 'http://localhost:3000';
+
+const MESSAGES_PAGE_SIZE = 30;
 
 type UseRoomMessagesOptions = {
   roomId: string;
   userId: string;
   enabled: boolean;
 };
+
+type MessagesQueryData = InfiniteData<MessagesPage, string | null>;
 
 export function useRoomMessages({
   roomId,
@@ -23,14 +31,45 @@ export function useRoomMessages({
 }: UseRoomMessagesOptions) {
   const queryClient = useQueryClient();
   const socketRef = useRef<Socket | null>(null);
+
   const [isConnected, setIsConnected] = useState(false);
   const [socketError, setSocketError] = useState<string | null>(null);
 
-  const messagesQuery = useQuery({
-    queryKey: ['messages', roomId, userId],
-    queryFn: () => getMessages(roomId, userId),
+  const queryKey = useMemo(
+    () => ['messages', roomId, userId] as const,
+    [roomId, userId],
+  );
+
+  const messagesQuery = useInfiniteQuery({
+    queryKey,
+
+    queryFn: ({ pageParam }) =>
+      getMessages(roomId, userId, {
+        before: pageParam ?? undefined,
+        limit: MESSAGES_PAGE_SIZE,
+      }),
+
+    initialPageParam: null as string | null,
+
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.nextCursor ? lastPage.nextCursor : undefined,
+
     enabled,
   });
+
+  const messages = useMemo(() => {
+    const pages = messagesQuery.data?.pages ?? [];
+    const uniqueMessages = new Map<string, ChatMessage>();
+
+    [...pages]
+      .reverse()
+      .flatMap((page) => page.items)
+      .forEach((message) => {
+        uniqueMessages.set(message.id, message);
+      });
+
+    return [...uniqueMessages.values()];
+  }, [messagesQuery.data]);
 
   useEffect(() => {
     if (!enabled) {
@@ -56,19 +95,59 @@ export function useRoomMessages({
     });
 
     socket.on('message:created', (message: ChatMessage) => {
-      queryClient.setQueryData<ChatMessage[]>(
-        ['messages', roomId, userId],
-        (currentMessages = []) => {
-          const messageExists = currentMessages.some(
-            (currentMessage) => currentMessage.id === message.id,
-          );
+      queryClient.setQueryData<MessagesQueryData>(queryKey, (currentData) => {
+        if (!currentData) {
+          return {
+            pages: [
+              {
+                items: [message],
+                nextCursor: null,
+                hasMore: false,
+              },
+            ],
+            pageParams: [null],
+          };
+        }
 
-          return messageExists
-            ? currentMessages
-            : [...currentMessages, message];
-        },
-      );
+        const messageExists = currentData.pages.some((page) =>
+          page.items.some((currentMessage) => currentMessage.id === message.id),
+        );
+
+        if (messageExists) {
+          return currentData;
+        }
+
+        const [latestPage, ...olderPages] = currentData.pages;
+
+        if (!latestPage) {
+          return currentData;
+        }
+
+        return {
+          ...currentData,
+          pages: [
+            {
+              ...latestPage,
+              items: [...latestPage.items, message],
+            },
+            ...olderPages,
+          ],
+        };
+      });
     });
+
+    socket.on(
+      'room:members-changed',
+      ({ roomId: changedRoomId }: { roomId: string }) => {
+        void queryClient.invalidateQueries({
+          queryKey: ['rooms', userId],
+        });
+
+        void queryClient.invalidateQueries({
+          queryKey: ['room', changedRoomId, userId],
+        });
+      },
+    );
 
     socket.on('exception', (error: unknown) => {
       const message =
@@ -87,7 +166,7 @@ export function useRoomMessages({
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [enabled, queryClient, roomId, userId]);
+  }, [enabled, queryClient, queryKey, roomId, userId]);
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -111,9 +190,12 @@ export function useRoomMessages({
   );
 
   return {
-    messages: messagesQuery.data ?? [],
+    messages,
     isLoading: messagesQuery.isPending,
     historyError: messagesQuery.error?.message ?? null,
+    hasOlderMessages: Boolean(messagesQuery.hasNextPage),
+    isLoadingOlderMessages: messagesQuery.isFetchingNextPage,
+    loadOlderMessages: messagesQuery.fetchNextPage,
     isConnected,
     socketError,
     sendMessage,
