@@ -16,6 +16,7 @@ import {
 import { MembersModal } from './members-modal';
 import { RoomConversation } from './room-conversation';
 import { RoomMembersBar } from './room-members-bar';
+import { MoreHorizontalIcon } from '@/components/icons';
 
 export function ChatShell() {
   const searchParams = useSearchParams();
@@ -107,7 +108,7 @@ export function ChatShell() {
               className="shrink-0 rounded-xl px-4 py-2 text-xl text-muted-foreground transition hover:bg-muted hover:text-foreground"
               href={`/rooms/${selectedRoom.id}/settings`}
             >
-              ···
+              <MoreHorizontalIcon className="size-5" />
             </Link>
           )}
         </div>

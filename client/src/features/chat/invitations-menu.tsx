@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
+import { BellIcon, PlusIcon } from '@/components/icons';
 import { getPendingInvitations, respondToInvitation } from '@/lib/api';
 
 type InvitationsMenuProps = {
@@ -17,6 +18,7 @@ type InvitationResponse = {
 export function InvitationsMenu({ profileId }: InvitationsMenuProps) {
   const queryClient = useQueryClient();
   const menuRef = useRef<HTMLDivElement>(null);
+
   const [isOpen, setIsOpen] = useState(false);
 
   const invitationsQuery = useQuery({
@@ -28,11 +30,13 @@ export function InvitationsMenu({ profileId }: InvitationsMenuProps) {
   const responseMutation = useMutation({
     mutationFn: ({ invitationId, action }: InvitationResponse) =>
       respondToInvitation(invitationId, profileId, action),
+
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ['room-invitations', profileId],
         }),
+
         queryClient.invalidateQueries({
           queryKey: ['rooms', profileId],
         }),
@@ -80,27 +84,14 @@ export function InvitationsMenu({ profileId }: InvitationsMenuProps) {
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label="Invitations"
-        className="relative rounded-xl p-3 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-        onClick={() => setIsOpen((current) => !current)}
+        className="relative flex size-11 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground"
+        onClick={() => setIsOpen((currentValue) => !currentValue)}
         type="button"
       >
-        <svg
-          aria-hidden="true"
-          className="size-5"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <path
-            d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM13.73 21a2 2 0 0 1-3.46 0"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.75"
-          />
-        </svg>
+        <BellIcon className="size-5" />
 
         {invitations.length > 0 && (
-          <span className="absolute top-0 right-0 flex size-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+          <span className="absolute right-0 top-0 flex size-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
             {invitations.length}
           </span>
         )}
@@ -109,8 +100,7 @@ export function InvitationsMenu({ profileId }: InvitationsMenuProps) {
       {isOpen && (
         <section
           aria-label="Pending invitations"
-          className="absolute top-full left-1/2 z-50 mt-3 w-80 max-w-[calc(100vw-2rem)]
-          -translate-x-1/4 rounded-2xl border bg-popover p-4 text-popover-foreground shadow-xl"
+          className="absolute left-1/2 top-full z-50 mt-3 w-80 max-w-[calc(100vw-2rem)] -translate-x-1/4 rounded-2xl border bg-popover p-4 text-popover-foreground shadow-xl"
         >
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Invitations</h2>
@@ -121,7 +111,7 @@ export function InvitationsMenu({ profileId }: InvitationsMenuProps) {
               onClick={() => setIsOpen(false)}
               type="button"
             >
-              ×
+              <PlusIcon className="size-5" />
             </button>
           </div>
 

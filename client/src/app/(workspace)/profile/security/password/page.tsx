@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { type FormEvent, useMemo, useState } from 'react';
+import { ArrowLeftIcon } from '@/components/icons';
 
 type PasswordRequirementProps = {
   valid: boolean;
@@ -70,20 +71,7 @@ export default function ChangePasswordPage() {
           className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
           href="/profile/security"
         >
-          <svg
-            aria-hidden="true"
-            className="size-5"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="m15 18-6-6 6-6"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="1.75"
-            />
-          </svg>
+          <ArrowLeftIcon />
         </Link>
 
         <h1 className="text-lg font-semibold">Change password</h1>

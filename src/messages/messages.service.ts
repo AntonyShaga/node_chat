@@ -5,11 +5,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { isUUID } from 'class-validator';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageHistoryQueryDto } from './dto/message-history-query.dto';
+import { UpdateMessageDto } from './dto/update-message.dto';
 
 type MessageCursor = {
   createdAt: string;
@@ -52,6 +52,12 @@ export class MessagesService {
   }
 
   async create(roomId: string, data: CreateMessageDto) {
+    const normalizedText = data.text.trim();
+
+    if (!normalizedText) {
+      throw new BadRequestException('Message cannot be empty');
+    }
+
     return this.prisma.$transaction(async (transaction) => {
       const room = await transaction.room.findFirst({
         where: {
@@ -100,7 +106,7 @@ export class MessagesService {
       return transaction.message.create({
         data: {
           clientMessageId: data.clientMessageId,
-          text: data.text,
+          text: normalizedText,
           authorName: membership.user.displayName,
           room: {
             connect: {
@@ -127,17 +133,16 @@ export class MessagesService {
       where: {
         roomId,
         deletedAt: null,
-
         ...(cursor
           ? {
               OR: [
                 {
                   createdAt: {
-                    lt: cursor.createdAt,
+                    lt: new Date(cursor.createdAt),
                   },
                 },
                 {
-                  createdAt: cursor.createdAt,
+                  createdAt: new Date(cursor.createdAt),
                   id: {
                     lt: cursor.id,
                   },
@@ -158,11 +163,11 @@ export class MessagesService {
     });
 
     const hasMore = messages.length > limit;
-    const page = messages.slice(0, limit).reverse();
-    const oldestMessage = page[0];
+    const selectedMessages = messages.slice(0, limit);
+    const oldestMessage = selectedMessages[selectedMessages.length - 1];
 
     return {
-      items: page,
+      items: selectedMessages.reverse(),
       nextCursor:
         hasMore && oldestMessage
           ? this.encodeCursor({
@@ -174,38 +179,107 @@ export class MessagesService {
     };
   }
 
+  async update(roomId: string, messageId: string, data: UpdateMessageDto) {
+    const normalizedText = data.text.trim();
+
+    if (!normalizedText) {
+      throw new BadRequestException('Message cannot be empty');
+    }
+
+    await this.ensureMembership(roomId, data.requesterId);
+
+    const message = await this.prisma.message.findFirst({
+      where: {
+        id: messageId,
+        roomId,
+        deletedAt: null,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.authorId !== data.requesterId) {
+      throw new ForbiddenException('You can edit only your own messages');
+    }
+
+    if (message.text === normalizedText) {
+      return message;
+    }
+
+    return this.prisma.message.update({
+      where: {
+        id: messageId,
+      },
+      data: {
+        text: normalizedText,
+        editedAt: new Date(),
+      },
+    });
+  }
+
+  async remove(roomId: string, messageId: string, requesterId: string) {
+    await this.ensureMembership(roomId, requesterId);
+
+    const message = await this.prisma.message.findFirst({
+      where: {
+        id: messageId,
+        roomId,
+        deletedAt: null,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.authorId !== requesterId) {
+      throw new ForbiddenException('You can delete only your own messages');
+    }
+
+    const deletedMessage = await this.prisma.message.update({
+      where: {
+        id: messageId,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+
+    return {
+      id: deletedMessage.id,
+      roomId: deletedMessage.roomId,
+      deletedAt: deletedMessage.deletedAt,
+    };
+  }
+
   private encodeCursor(cursor: MessageCursor) {
     return Buffer.from(JSON.stringify(cursor)).toString('base64url');
   }
 
-  private decodeCursor(encodedCursor: string) {
+  private decodeCursor(value: string): MessageCursor {
     try {
-      const decodedCursor = Buffer.from(encodedCursor, 'base64url').toString(
-        'utf8',
-      );
+      const decoded = JSON.parse(
+        Buffer.from(value, 'base64url').toString('utf8'),
+      ) as Partial<MessageCursor>;
 
-      const parsedCursor = JSON.parse(decodedCursor) as Partial<MessageCursor>;
+      const createdAt = new Date(decoded.createdAt ?? '');
 
       if (
-        typeof parsedCursor.createdAt !== 'string' ||
-        typeof parsedCursor.id !== 'string' ||
-        !isUUID(parsedCursor.id)
+        !decoded.id ||
+        !decoded.createdAt ||
+        Number.isNaN(createdAt.getTime())
       ) {
-        throw new Error('Invalid cursor data');
-      }
-
-      const createdAt = new Date(parsedCursor.createdAt);
-
-      if (Number.isNaN(createdAt.getTime())) {
-        throw new Error('Invalid cursor date');
+        throw new Error('Invalid cursor');
       }
 
       return {
-        createdAt,
-        id: parsedCursor.id,
+        id: decoded.id,
+        createdAt: createdAt.toISOString(),
       };
     } catch {
-      throw new BadRequestException('Invalid message history cursor');
+      throw new BadRequestException('Invalid message cursor');
     }
   }
 }

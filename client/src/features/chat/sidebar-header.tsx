@@ -1,7 +1,9 @@
 import Link from 'next/link';
 
-import { InvitationsMenu } from './invitations-menu';
+import { BoltIcon, ChevronRightIcon } from '@/components/icons';
 import type { ChatProfile } from '@/types/chat';
+
+import { InvitationsMenu } from './invitations-menu';
 
 type SidebarHeaderProps = {
   profile: ChatProfile;
@@ -25,19 +27,7 @@ export function SidebarHeader({ profile }: SidebarHeaderProps) {
           className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition hover:opacity-90"
           href="/chat"
         >
-          <svg
-            aria-hidden="true"
-            className="size-5"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="m13.5 2-7 11H12l-1.5 9 7-12H12l1.5-8Z"
-              fill="currentColor"
-              stroke="currentColor"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <BoltIcon className="size-5" />
         </Link>
 
         <InvitationsMenu profileId={profile.id} />
@@ -53,23 +43,11 @@ export function SidebarHeader({ profile }: SidebarHeaderProps) {
 
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{profile.displayName}</p>
+
           <p className="text-sm text-accent">Online</p>
         </div>
 
-        <svg
-          aria-hidden="true"
-          className="size-5 shrink-0 text-muted-foreground"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <path
-            d="m9 18 6-6-6-6"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.75"
-          />
-        </svg>
+        <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
       </Link>
     </header>
   );

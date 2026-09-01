@@ -9,6 +9,7 @@ import { CreateRoomModal } from './create-room-modal';
 import { SidebarHeader } from './sidebar-header';
 import { getRooms } from '@/lib/api';
 import type { ChatProfile, ChatRoom } from '@/types/chat';
+import { LockIcon, PlusIcon } from '@/components/icons';
 
 type WorkspaceSidebarProps = {
   profile: ChatProfile;
@@ -25,7 +26,11 @@ function RoomLink({ room, selected }: { room: ChatRoom; selected: boolean }) {
       href={`/chat?roomId=${room.id}`}
     >
       <span className="text-xl">
-        {room.visibility === 'PRIVATE' ? '🔒' : '#'}
+        {room.visibility === 'PRIVATE' ? (
+          <LockIcon className="size-4 shrink-0 text-muted-foreground" />
+        ) : (
+          '#'
+        )}
       </span>
 
       <span className="min-w-0 flex-1 truncate">{room.name}</span>
@@ -85,7 +90,7 @@ export function WorkspaceSidebar({ profile }: WorkspaceSidebarProps) {
               onClick={() => setIsCreateRoomOpen(true)}
               type="button"
             >
-              +
+              <PlusIcon className="size-5" />
             </button>
           </div>
 

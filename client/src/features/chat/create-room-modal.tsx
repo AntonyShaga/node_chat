@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FormEvent, useState } from 'react';
 
 import { createRoom } from '@/lib/api';
+import { PlusIcon } from '@/components/icons';
 
 type CreateRoomModalProps = {
   ownerId: string;
@@ -76,7 +77,7 @@ export function CreateRoomModal({
             onClick={onClose}
             type="button"
           >
-            ×
+            <PlusIcon className="size-5" />
           </button>
         </div>
 

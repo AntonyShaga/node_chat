@@ -6,7 +6,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { io, type Socket } from 'socket.io-client';
 
 import { getMessages } from '@/lib/api';
 import type { ChatMessage, MessagesPage } from '@/types/chat';
@@ -23,6 +23,12 @@ type UseRoomMessagesOptions = {
 };
 
 type MessagesQueryData = InfiniteData<MessagesPage, string | null>;
+
+type DeletedMessageEvent = {
+  id: string;
+  roomId: string;
+  deletedAt: string;
+};
 
 export function useRoomMessages({
   roomId,
@@ -82,6 +88,7 @@ export function useRoomMessages({
 
     socket.on('connect', () => {
       setIsConnected(false);
+      setSocketError(null);
 
       socket.emit('room:join', {
         roomId,
@@ -95,6 +102,10 @@ export function useRoomMessages({
     });
 
     socket.on('message:created', (message: ChatMessage) => {
+      if (message.roomId !== roomId) {
+        return;
+      }
+
       queryClient.setQueryData<MessagesQueryData>(queryKey, (currentData) => {
         if (!currentData) {
           return {
@@ -136,6 +147,50 @@ export function useRoomMessages({
       });
     });
 
+    socket.on('message:updated', (message: ChatMessage) => {
+      if (message.roomId !== roomId) {
+        return;
+      }
+
+      queryClient.setQueryData<MessagesQueryData>(queryKey, (currentData) => {
+        if (!currentData) {
+          return currentData;
+        }
+
+        return {
+          ...currentData,
+          pages: currentData.pages.map((page) => ({
+            ...page,
+            items: page.items.map((currentMessage) =>
+              currentMessage.id === message.id ? message : currentMessage,
+            ),
+          })),
+        };
+      });
+    });
+
+    socket.on('message:deleted', (deletedMessage: DeletedMessageEvent) => {
+      if (deletedMessage.roomId !== roomId) {
+        return;
+      }
+
+      queryClient.setQueryData<MessagesQueryData>(queryKey, (currentData) => {
+        if (!currentData) {
+          return currentData;
+        }
+
+        return {
+          ...currentData,
+          pages: currentData.pages.map((page) => ({
+            ...page,
+            items: page.items.filter(
+              (message) => message.id !== deletedMessage.id,
+            ),
+          })),
+        };
+      });
+    });
+
     socket.on(
       'room:members-changed',
       ({ roomId: changedRoomId }: { roomId: string }) => {
@@ -158,6 +213,11 @@ export function useRoomMessages({
       setSocketError(message);
     });
 
+    socket.on('connect_error', (error) => {
+      setIsConnected(false);
+      setSocketError(error.message || 'Unable to connect');
+    });
+
     socket.on('disconnect', () => {
       setIsConnected(false);
     });
@@ -177,11 +237,57 @@ export function useRoomMessages({
         return false;
       }
 
+      setSocketError(null);
+
       socket.emit('message:send', {
         roomId,
         authorId: userId,
         clientMessageId: crypto.randomUUID(),
         text: normalizedText,
+      });
+
+      return true;
+    },
+    [roomId, userId],
+  );
+
+  const editMessage = useCallback(
+    (messageId: string, text: string) => {
+      const normalizedText = text.trim();
+      const socket = socketRef.current;
+
+      if (!socket?.connected || !normalizedText) {
+        return false;
+      }
+
+      setSocketError(null);
+
+      socket.emit('message:edit', {
+        roomId,
+        messageId,
+        requesterId: userId,
+        text: normalizedText,
+      });
+
+      return true;
+    },
+    [roomId, userId],
+  );
+
+  const deleteMessage = useCallback(
+    (messageId: string) => {
+      const socket = socketRef.current;
+
+      if (!socket?.connected) {
+        return false;
+      }
+
+      setSocketError(null);
+
+      socket.emit('message:delete', {
+        roomId,
+        messageId,
+        requesterId: userId,
       });
 
       return true;
@@ -199,5 +305,7 @@ export function useRoomMessages({
     isConnected,
     socketError,
     sendMessage,
+    editMessage,
+    deleteMessage,
   };
 }

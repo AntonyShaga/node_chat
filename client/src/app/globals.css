@@ -28,7 +28,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
-  --font-sans: 'Geist', 'Geist Fallback';
+  --font-sans: var(--font-lora, Georgia, 'Times New Roman', serif);
 }
 
 :root {

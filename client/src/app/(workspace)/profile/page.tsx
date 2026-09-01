@@ -14,6 +14,11 @@ import {
   saveChatProfile,
   subscribeToProfile,
 } from '@/lib/profile-storage';
+import {
+  ArrowLeftIcon,
+  ChevronRightIcon,
+  LogOutIcon,
+} from '@/components/icons';
 
 type UpdateProfileInput = {
   profileId: string;
@@ -106,20 +111,7 @@ export default function ProfilePage() {
           className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
           href="/chat"
         >
-          <svg
-            aria-hidden="true"
-            className="size-5"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="m15 18-6-6 6-6"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="1.75"
-            />
-          </svg>
+          <ArrowLeftIcon />
         </Link>
 
         <h1 className="text-lg font-semibold">Your profile</h1>
@@ -230,7 +222,7 @@ export default function ProfilePage() {
                 aria-hidden="true"
                 className="text-xl text-muted-foreground"
               >
-                ›
+                <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
               </span>
             </Link>
 
@@ -239,7 +231,7 @@ export default function ProfilePage() {
               onClick={handleLogout}
               type="button"
             >
-              <span aria-hidden="true">↪</span>
+              <LogOutIcon className="size-5 shrink-0" />
               Log out
             </button>
           </div>

@@ -1,19 +1,12 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  type FormEvent,
-  type KeyboardEvent,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 
-import { joinRoom } from '@/lib/api';
 import type { ChatProfile, ChatRoom } from '@/types/chat';
 
+import { JoinRoomPrompt } from './conversation/join-room-prompt';
+import { MessageComposer } from './conversation/message-composer';
+import { MessageList } from './conversation/message-list';
 import { useRoomMessages } from './use-room-messages';
 
 type RoomConversationProps = {
@@ -27,24 +20,11 @@ type ScrollSnapshot = {
 };
 
 export function RoomConversation({ profile, room }: RoomConversationProps) {
-  const queryClient = useQueryClient();
-
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
   const initialScrollCompletedRef = useRef(false);
   const isNearBottomRef = useRef(true);
   const scrollSnapshotRef = useRef<ScrollSnapshot | null>(null);
-
-  const [text, setText] = useState('');
-
-  const joinMutation = useMutation({
-    mutationFn: () => joinRoom(room.id, profile.id),
-
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: ['rooms', profile.id],
-      }),
-  });
 
   const isMember = room.members.some((member) => member.userId === profile.id);
 
@@ -58,6 +38,8 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
     isConnected,
     socketError,
     sendMessage,
+    editMessage,
+    deleteMessage,
   } = useRoomMessages({
     roomId: room.id,
     userId: profile.id,
@@ -82,7 +64,11 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
     };
 
     try {
-      await loadOlderMessages();
+      const result = await loadOlderMessages();
+
+      if (result.isError) {
+        scrollSnapshotRef.current = null;
+      }
     } catch {
       scrollSnapshotRef.current = null;
     }
@@ -101,6 +87,7 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
       const addedHeight = container.scrollHeight - snapshot.scrollHeight;
 
       container.scrollTop = snapshot.scrollTop + addedHeight;
+
       scrollSnapshotRef.current = null;
 
       return;
@@ -163,53 +150,15 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
     isNearBottomRef.current = distanceFromBottom < 120;
   }
 
-  function submitMessage() {
-    if (sendMessage(text)) {
-      setText('');
-      isNearBottomRef.current = true;
-    }
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    submitMessage();
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      submitMessage();
-    }
+  function handleMessageSent() {
+    isNearBottomRef.current = true;
   }
 
   if (!isMember) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-8 text-center">
-        <div>
-          <h2 className="text-xl font-semibold">Join this room</h2>
-
-          <p className="mt-2 text-muted-foreground">
-            Join the room to read and send messages.
-          </p>
-
-          <button
-            className="mt-6 rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={joinMutation.isPending}
-            onClick={() => joinMutation.mutate()}
-            type="button"
-          >
-            {joinMutation.isPending ? 'Joining...' : 'Join room'}
-          </button>
-
-          {joinMutation.error && (
-            <p className="mt-3 text-sm text-destructive">
-              {joinMutation.error.message}
-            </p>
-          )}
-        </div>
-      </div>
-    );
+    return <JoinRoomPrompt roomId={room.id} userId={profile.id} />;
   }
+
+  const errorMessage = historyError ?? socketError;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -228,7 +177,7 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
           )}
 
           {!hasOlderMessages && messages.length > 0 && (
-            <p className="pb-5 text-center text-xs text-muted-foreground">
+            <p className="pb-2 text-center text-xs text-muted-foreground">
               Beginning of conversation
             </p>
           )}
@@ -237,8 +186,10 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
             <p className="text-muted-foreground">Loading messages...</p>
           )}
 
-          {(historyError || socketError) && (
-            <p className="text-destructive">{historyError ?? socketError}</p>
+          {errorMessage && (
+            <p className="mb-4 rounded-xl bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              {errorMessage}
+            </p>
           )}
 
           {!isLoading && messages.length === 0 && (
@@ -251,67 +202,21 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
             </div>
           )}
 
-          <div className="space-y-6">
-            {messages.map((message) => (
-              <article className="flex min-w-0 gap-4" key={message.id}>
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted font-semibold">
-                  {message.authorName.slice(0, 2).toUpperCase()}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <h3 className="max-w-full truncate font-semibold">
-                      {message.authorName}
-                    </h3>
-
-                    <time className="shrink-0 text-xs text-muted-foreground">
-                      {new Date(message.createdAt).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </time>
-                  </div>
-
-                  <p className="mt-1 break-words whitespace-pre-wrap text-muted-foreground">
-                    {message.text}
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
+          <MessageList
+            currentUserId={profile.id}
+            messages={messages}
+            onDelete={deleteMessage}
+            onEdit={editMessage}
+          />
         </div>
       </div>
 
-      <form
-        className="shrink-0 border-t bg-card px-6 py-4 sm:px-8"
-        onSubmit={handleSubmit}
-      >
-        <div className="mx-auto flex max-w-4xl items-end gap-3">
-          <textarea
-            className="max-h-36 min-h-12 min-w-0 flex-1 resize-none rounded-xl border bg-input px-4 py-3 outline-none transition focus:ring-2 focus:ring-ring/30"
-            disabled={!isConnected}
-            onChange={(event) => setText(event.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={`Message #${room.name}`}
-            rows={1}
-            value={text}
-          />
-
-          <button
-            className="min-h-12 rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!isConnected || !text.trim()}
-            type="submit"
-          >
-            Send
-          </button>
-        </div>
-
-        <p className="mt-2 text-center text-xs text-muted-foreground">
-          {isConnected
-            ? 'Press Enter to send · Shift + Enter for a new line'
-            : 'Connecting to room...'}
-        </p>
-      </form>
+      <MessageComposer
+        isConnected={isConnected}
+        onMessageSent={handleMessageSent}
+        onSend={sendMessage}
+        roomName={room.name}
+      />
     </div>
   );
 }
