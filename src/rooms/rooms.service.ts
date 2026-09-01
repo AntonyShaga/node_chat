@@ -212,7 +212,7 @@ export class RoomsService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId: string) {
     const room = await this.prisma.room.findFirst({
       where: {
         id,
@@ -223,12 +223,21 @@ export class RoomsService {
           include: {
             user: true,
           },
+          orderBy: {
+            joinedAt: 'asc',
+          },
         },
       },
     });
 
     if (!room) {
       throw new NotFoundException('Room not found');
+    }
+
+    const isMember = room.members.some((member) => member.userId === userId);
+
+    if (room.visibility === RoomVisibility.PRIVATE && !isMember) {
+      throw new ForbiddenException('Private room is available only to members');
     }
 
     return room;

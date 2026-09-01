@@ -30,8 +30,11 @@ export class RoomsController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.roomsService.findOne(id);
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.roomsService.findOne(id, userId);
   }
 
   @Post(':id/join')

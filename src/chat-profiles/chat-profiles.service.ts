@@ -11,6 +11,31 @@ export class ChatProfilesService {
     return this.prisma.chatProfile.create({ data });
   }
 
+  findAll(search?: string) {
+    const normalizedSearch = search?.trim();
+
+    return this.prisma.chatProfile.findMany({
+      where: {
+        deletedAt: null,
+        displayName: normalizedSearch
+          ? {
+              contains: normalizedSearch,
+              mode: 'insensitive',
+            }
+          : undefined,
+      },
+      select: {
+        id: true,
+        displayName: true,
+        avatarUrl: true,
+      },
+      orderBy: {
+        displayName: 'asc',
+      },
+      take: 20,
+    });
+  }
+
   async findOne(id: string) {
     const profile = await this.prisma.chatProfile.findFirst({
       where: {
