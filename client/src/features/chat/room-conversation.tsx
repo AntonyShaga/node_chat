@@ -19,6 +19,9 @@ type ScrollSnapshot = {
   scrollTop: number;
 };
 
+const NEAR_BOTTOM_DISTANCE = 120;
+const LOAD_OLDER_ROOT_MARGIN = '120px 0px 0px';
+
 export function RoomConversation({ profile, room }: RoomConversationProps) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -87,7 +90,6 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
       const addedHeight = container.scrollHeight - snapshot.scrollHeight;
 
       container.scrollTop = snapshot.scrollTop + addedHeight;
-
       scrollSnapshotRef.current = null;
 
       return;
@@ -125,7 +127,7 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
       },
       {
         root: container,
-        rootMargin: '120px 0px 0px',
+        rootMargin: LOAD_OLDER_ROOT_MARGIN,
         threshold: 0,
       },
     );
@@ -147,7 +149,7 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
     const distanceFromBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
 
-    isNearBottomRef.current = distanceFromBottom < 120;
+    isNearBottomRef.current = distanceFromBottom < NEAR_BOTTOM_DISTANCE;
   }
 
   function handleMessageSent() {
@@ -159,44 +161,58 @@ export function RoomConversation({ profile, room }: RoomConversationProps) {
   }
 
   const errorMessage = historyError ?? socketError;
+  const hasMessages = messages.length > 0;
+  const isConversationEmpty = !isLoading && !hasMessages;
+  const isBeginningVisible = !hasOlderMessages && hasMessages;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-6 [scrollbar-gutter:stable] sm:px-8"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 [scrollbar-gutter:stable] sm:px-5 sm:py-5 lg:px-8 lg:py-6"
         onScroll={handleScroll}
         ref={scrollContainerRef}
       >
-        <div className="mx-auto max-w-4xl">
-          <div ref={topSentinelRef} />
+        <div className="mx-auto w-full max-w-4xl">
+          <div aria-hidden="true" className="h-px" ref={topSentinelRef} />
 
           {isLoadingOlderMessages && (
-            <p className="pb-5 text-center text-sm text-muted-foreground">
+            <p
+              aria-live="polite"
+              className="pb-4 text-center text-xs text-muted-foreground sm:pb-5 sm:text-sm"
+            >
               Loading older messages...
             </p>
           )}
 
-          {!hasOlderMessages && messages.length > 0 && (
+          {isBeginningVisible && (
             <p className="pb-2 text-center text-xs text-muted-foreground">
               Beginning of conversation
             </p>
           )}
 
           {isLoading && (
-            <p className="text-muted-foreground">Loading messages...</p>
+            <p
+              aria-live="polite"
+              className="py-6 text-center text-sm text-muted-foreground"
+            >
+              Loading messages...
+            </p>
           )}
 
           {errorMessage && (
-            <p className="mb-4 rounded-xl bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <p
+              aria-live="polite"
+              className="mb-3 rounded-xl bg-destructive/5 px-3 py-2.5 text-sm text-destructive sm:mb-4 sm:px-4 sm:py-3"
+            >
               {errorMessage}
             </p>
           )}
 
-          {!isLoading && messages.length === 0 && (
-            <div className="py-12 text-center text-muted-foreground">
-              <p>No messages yet.</p>
+          {isConversationEmpty && (
+            <div className="px-4 py-10 text-center text-muted-foreground sm:py-12">
+              <p className="text-sm sm:text-base">No messages yet.</p>
 
-              <p className="mt-1 text-sm">
+              <p className="mt-1 text-xs sm:text-sm">
                 Send the first message in this room.
               </p>
             </div>

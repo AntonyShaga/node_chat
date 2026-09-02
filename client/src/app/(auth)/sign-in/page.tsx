@@ -1,13 +1,31 @@
 'use client';
 
 import Link from 'next/link';
-import { type FormEvent, useState } from 'react';
+import { type ChangeEvent, type FormEvent, useState } from 'react';
 
 export default function SignInPage() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  function clearMessage() {
+    setMessage(null);
+  }
+
+  function handleIdentifierChange(event: ChangeEvent<HTMLInputElement>) {
+    setIdentifier(event.target.value);
+    clearMessage();
+  }
+
+  function handlePasswordChange(event: ChangeEvent<HTMLInputElement>) {
+    setPassword(event.target.value);
+    clearMessage();
+  }
+
+  function handleRememberMeChange(event: ChangeEvent<HTMLInputElement>) {
+    setRememberMe(event.target.checked);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,27 +42,28 @@ export default function SignInPage() {
   }
 
   return (
-    <section className="w-full max-w-md rounded-2xl border bg-card px-6 py-8 text-card-foreground shadow-lg sm:px-8">
-      <div className="mt-6 text-center">
-        <h1 className="text-2xl font-semibold">Welcome back</h1>
+    <section className="w-full max-w-md bg-card px-4 py-5 text-card-foreground sm:rounded-2xl sm:border sm:px-6 sm:py-6 sm:shadow-lg md:px-8 md:py-8">
+      <div className="text-center">
+        <h1 className="text-xl font-semibold sm:text-2xl">Welcome back</h1>
 
-        <p className="mt-2 text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground sm:mt-2 sm:text-base">
           Sign in to continue to your workspace.
         </p>
       </div>
 
-      <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+      <form
+        className="mt-5 space-y-4 sm:mt-6 sm:space-y-5"
+        onSubmit={handleSubmit}
+      >
         <label className="block">
-          <span className="mb-2 block font-medium">Email or phone number</span>
+          <span className="mb-1 block text-sm font-medium sm:mb-1.5">
+            Email or phone number
+          </span>
 
           <input
             autoComplete="username"
-            autoFocus
-            className="w-full rounded-xl border bg-background px-4 py-3 outline-none transition focus:ring-2 focus:ring-ring/30"
-            onChange={(event) => {
-              setIdentifier(event.target.value);
-              setMessage(null);
-            }}
+            className="min-h-10 w-full rounded-xl border bg-background px-3.5 py-2 text-base outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/30 sm:min-h-11 sm:px-4 sm:text-sm"
+            onChange={handleIdentifierChange}
             placeholder="you@company.com or +15065551234"
             required
             value={identifier}
@@ -52,16 +71,15 @@ export default function SignInPage() {
         </label>
 
         <label className="block">
-          <span className="mb-2 block font-medium">Password</span>
+          <span className="mb-1 block text-sm font-medium sm:mb-1.5">
+            Password
+          </span>
 
           <input
             autoComplete="current-password"
-            className="w-full rounded-xl border bg-background px-4 py-3 outline-none transition focus:ring-2 focus:ring-ring/30"
+            className="min-h-10 w-full rounded-xl border bg-background px-3.5 py-2 text-base outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/30 sm:min-h-11 sm:px-4 sm:text-sm"
             minLength={8}
-            onChange={(event) => {
-              setPassword(event.target.value);
-              setMessage(null);
-            }}
+            onChange={handlePasswordChange}
             placeholder="Enter your password"
             required
             type="password"
@@ -69,15 +87,16 @@ export default function SignInPage() {
           />
         </label>
 
-        <div className="flex items-center justify-between gap-4 text-sm">
-          <label className="flex items-center gap-2 text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
+          <label className="flex min-h-10 items-center gap-2 text-muted-foreground">
             <input
               checked={rememberMe}
-              className="size-4 accent-primary"
-              onChange={(event) => setRememberMe(event.target.checked)}
+              className="size-4 shrink-0 accent-primary"
+              onChange={handleRememberMeChange}
               type="checkbox"
             />
-            Remember me
+
+            <span>Remember me</span>
           </label>
 
           <Link
@@ -89,20 +108,23 @@ export default function SignInPage() {
         </div>
 
         {message && (
-          <p className="rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <p
+            aria-live="polite"
+            className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground sm:px-4 sm:py-3"
+          >
             {message}
           </p>
         )}
 
         <button
-          className="w-full rounded-xl bg-primary px-4 py-3 font-medium text-primary-foreground transition hover:opacity-90"
+          className="min-h-10 w-full rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 sm:min-h-11 sm:py-2.5"
           type="submit"
         >
           Sign in
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-4 text-center text-sm text-muted-foreground sm:mt-6">
         New to node chat?{' '}
         <Link
           className="font-medium text-primary transition hover:opacity-70"

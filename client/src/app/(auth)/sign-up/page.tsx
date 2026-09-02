@@ -1,7 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
+import {
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
+  useMemo,
+  useState,
+} from 'react';
+
+import { cn } from '@/lib/utils';
 
 type IdentifierType = 'email' | 'phone';
 
@@ -11,14 +19,13 @@ type PasswordRequirementProps = {
 };
 
 function PasswordRequirement({ valid, children }: PasswordRequirementProps) {
+  const requirementClassName = cn(
+    'flex min-w-0 items-center gap-1.5',
+    valid ? 'text-primary' : 'text-muted-foreground',
+  );
+
   return (
-    <li
-      className={
-        valid
-          ? 'flex items-center gap-1.5 text-primary'
-          : 'flex items-center gap-1.5 text-muted-foreground'
-      }
-    >
+    <li className={requirementClassName}>
       <span
         aria-hidden="true"
         className="flex size-4 shrink-0 items-center justify-center"
@@ -26,7 +33,7 @@ function PasswordRequirement({ valid, children }: PasswordRequirementProps) {
         {valid ? '✓' : '○'}
       </span>
 
-      <span>{children}</span>
+      <span className="truncate">{children}</span>
     </li>
   );
 }
@@ -49,6 +56,8 @@ export default function SignUpPage() {
     [password],
   );
 
+  const isEmailIdentifier = identifierType === 'email';
+
   const meetsRequirements = Object.values(requirements).every(Boolean);
 
   const passwordsMatch =
@@ -60,10 +69,69 @@ export default function SignUpPage() {
     meetsRequirements &&
     passwordsMatch;
 
+  const emailButtonClassName = cn(
+    'min-h-9 rounded-lg px-4 py-1.5 text-sm transition',
+    isEmailIdentifier
+      ? 'bg-card font-medium text-primary shadow-sm'
+      : 'text-muted-foreground hover:text-foreground',
+  );
+
+  const phoneButtonClassName = cn(
+    'min-h-9 rounded-lg px-4 py-1.5 text-sm transition',
+    !isEmailIdentifier
+      ? 'bg-card font-medium text-primary shadow-sm'
+      : 'text-muted-foreground hover:text-foreground',
+  );
+
+  const identifierLabel = isEmailIdentifier ? 'Email' : 'Phone number';
+  const identifierAutoComplete = isEmailIdentifier ? 'email' : 'tel';
+  const identifierInputMode = isEmailIdentifier ? 'email' : 'tel';
+  const identifierInputType = isEmailIdentifier ? 'email' : 'tel';
+
+  const identifierPlaceholder = isEmailIdentifier
+    ? 'you@company.com'
+    : '+15065551234';
+
+  const identifierPattern = isEmailIdentifier
+    ? undefined
+    : String.raw`\+[1-9][0-9]{7,14}`;
+
+  function clearMessage() {
+    setMessage(null);
+  }
+
   function selectIdentifierType(type: IdentifierType) {
     setIdentifierType(type);
     setIdentifier('');
-    setMessage(null);
+    clearMessage();
+  }
+
+  function handleDisplayNameChange(event: ChangeEvent<HTMLInputElement>) {
+    setDisplayName(event.target.value);
+    clearMessage();
+  }
+
+  function handleIdentifierChange(event: ChangeEvent<HTMLInputElement>) {
+    setIdentifier(event.target.value);
+    clearMessage();
+  }
+
+  function handlePasswordChange(event: ChangeEvent<HTMLInputElement>) {
+    setPassword(event.target.value);
+    clearMessage();
+  }
+
+  function handleConfirmedPasswordChange(event: ChangeEvent<HTMLInputElement>) {
+    setConfirmedPassword(event.target.value);
+    clearMessage();
+  }
+
+  function handleEmailTypeSelect() {
+    selectIdentifierType('email');
+  }
+
+  function handlePhoneTypeSelect() {
+    selectIdentifierType('phone');
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -73,23 +141,21 @@ export default function SignUpPage() {
       return;
     }
 
-    const normalizedIdentifier =
-      identifierType === 'email'
-        ? identifier.trim().toLowerCase()
-        : identifier.trim().replace(/[\s()-]/g, '');
+    const normalizedIdentifier = isEmailIdentifier
+      ? identifier.trim().toLowerCase()
+      : identifier.trim().replace(/[\s()-]/g, '');
 
-    const payload =
-      identifierType === 'email'
-        ? {
-            displayName: displayName.trim(),
-            email: normalizedIdentifier,
-            password,
-          }
-        : {
-            displayName: displayName.trim(),
-            phone: normalizedIdentifier,
-            password,
-          };
+    const payload = isEmailIdentifier
+      ? {
+          displayName: displayName.trim(),
+          email: normalizedIdentifier,
+          password,
+        }
+      : {
+          displayName: displayName.trim(),
+          phone: normalizedIdentifier,
+          password,
+        };
 
     console.log('Future POST /auth/register payload:', payload);
 
@@ -99,104 +165,87 @@ export default function SignUpPage() {
   }
 
   return (
-    <section className="w-full max-w-md rounded-2xl border bg-card px-6 py-6 text-card-foreground shadow-lg">
+    <section className="w-full max-w-md bg-card px-4 py-4 text-card-foreground sm:rounded-2xl sm:border sm:px-6 sm:py-6 sm:shadow-lg md:px-8">
       <div className="text-center">
-        <h1 className="text-xl font-semibold">Create your account</h1>
+        <h1 className="text-xl font-semibold sm:text-2xl">
+          Create your account
+        </h1>
 
-        <p className="mt-1.5 text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground sm:mt-1.5">
           A calm place for focused conversation.
         </p>
       </div>
 
-      <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+      <form
+        className="mt-4 space-y-3 sm:mt-5 sm:space-y-4"
+        onSubmit={handleSubmit}
+      >
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium">Name</span>
+          <span className="mb-1 block text-sm font-medium">Name</span>
 
           <input
             autoComplete="name"
-            autoFocus
-            className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring/30"
+            className="min-h-10 w-full rounded-xl border bg-background px-3.5 py-2 text-base outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/30 sm:px-4 sm:text-sm"
             maxLength={50}
             minLength={2}
-            onChange={(event) => {
-              setDisplayName(event.target.value);
-              setMessage(null);
-            }}
+            onChange={handleDisplayNameChange}
             placeholder="Alex Morgan"
             required
             value={displayName}
           />
         </label>
 
-        <div>
-          <span className="mb-1.5 block text-sm font-medium">
+        <fieldset>
+          <legend className="mb-1 text-sm font-medium">
             Create account with
-          </span>
+          </legend>
 
           <div className="grid grid-cols-2 rounded-xl bg-muted p-1">
             <button
-              className={`rounded-lg px-4 py-1.5 text-sm transition ${
-                identifierType === 'email'
-                  ? 'bg-card font-medium text-primary shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => selectIdentifierType('email')}
+              aria-pressed={isEmailIdentifier}
+              className={emailButtonClassName}
+              onClick={handleEmailTypeSelect}
               type="button"
             >
               Email
             </button>
 
             <button
-              className={`rounded-lg px-4 py-1.5 text-sm transition ${
-                identifierType === 'phone'
-                  ? 'bg-card font-medium text-primary shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => selectIdentifierType('phone')}
+              aria-pressed={!isEmailIdentifier}
+              className={phoneButtonClassName}
+              onClick={handlePhoneTypeSelect}
               type="button"
             >
               Phone
             </button>
           </div>
-        </div>
+        </fieldset>
 
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium">
-            {identifierType === 'email' ? 'Email' : 'Phone number'}
+          <span className="mb-1 block text-sm font-medium">
+            {identifierLabel}
           </span>
 
           <input
-            autoComplete={identifierType === 'email' ? 'email' : 'tel'}
-            className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring/30"
-            inputMode={identifierType === 'email' ? 'email' : 'tel'}
-            onChange={(event) => {
-              setIdentifier(event.target.value);
-              setMessage(null);
-            }}
-            pattern={
-              identifierType === 'phone'
-                ? String.raw`\+[1-9][0-9]{7,14}`
-                : undefined
-            }
-            placeholder={
-              identifierType === 'email' ? 'you@company.com' : '+15065551234'
-            }
+            autoComplete={identifierAutoComplete}
+            className="min-h-10 w-full rounded-xl border bg-background px-3.5 py-2 text-base outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/30 sm:px-4 sm:text-sm"
+            inputMode={identifierInputMode}
+            onChange={handleIdentifierChange}
+            pattern={identifierPattern}
+            placeholder={identifierPlaceholder}
             required
-            type={identifierType === 'email' ? 'email' : 'tel'}
+            type={identifierInputType}
             value={identifier}
           />
         </label>
 
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium">Password</span>
+          <span className="mb-1 block text-sm font-medium">Password</span>
 
           <input
             autoComplete="new-password"
-            className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring/30"
-            onChange={(event) => {
-              setPassword(event.target.value);
-              setMessage(null);
-            }}
+            className="min-h-10 w-full rounded-xl border bg-background px-3.5 py-2 text-base outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/30 sm:px-4 sm:text-sm"
+            onChange={handlePasswordChange}
             placeholder="Create a password"
             required
             type="password"
@@ -204,10 +253,15 @@ export default function SignUpPage() {
           />
         </label>
 
-        <section className="rounded-xl bg-muted/60 p-3">
-          <h2 className="text-xs font-medium">Password must include:</h2>
+        <section
+          aria-labelledby="password-requirements"
+          className="rounded-xl bg-muted/60 p-3"
+        >
+          <h2 className="text-xs font-medium" id="password-requirements">
+            Password must include:
+          </h2>
 
-          <ul className="mt-2 grid gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
+          <ul className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
             <PasswordRequirement valid={requirements.minimumLength}>
               8+ characters
             </PasswordRequirement>
@@ -227,18 +281,15 @@ export default function SignUpPage() {
         </section>
 
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium">
+          <span className="mb-1 block text-sm font-medium">
             Confirm password
           </span>
 
           <input
             aria-invalid={confirmedPassword.length > 0 && !passwordsMatch}
             autoComplete="new-password"
-            className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring/30 aria-invalid:border-destructive aria-invalid:ring-destructive/20"
-            onChange={(event) => {
-              setConfirmedPassword(event.target.value);
-              setMessage(null);
-            }}
+            className="min-h-10 w-full rounded-xl border bg-background px-3.5 py-2 text-base outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/30 aria-invalid:border-destructive aria-invalid:ring-destructive/20 sm:px-4 sm:text-sm"
+            onChange={handleConfirmedPasswordChange}
             placeholder="Repeat your password"
             required
             type="password"
@@ -246,20 +297,20 @@ export default function SignUpPage() {
           />
 
           {confirmedPassword.length > 0 && !passwordsMatch && (
-            <p className="mt-1.5 text-xs text-destructive">
+            <p className="mt-1 text-xs text-destructive">
               Passwords do not match.
             </p>
           )}
         </label>
 
         {message && (
-          <p className="rounded-xl bg-muted px-3 py-2.5 text-xs text-muted-foreground">
+          <p className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
             {message}
           </p>
         )}
 
         <button
-          className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-10 w-full rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-11"
           disabled={!canSubmit}
           type="submit"
         >
@@ -267,7 +318,7 @@ export default function SignUpPage() {
         </button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-muted-foreground">
+      <p className="mt-3 text-center text-sm text-muted-foreground sm:mt-5">
         Already have an account?{' '}
         <Link
           className="font-medium text-primary transition hover:opacity-70"

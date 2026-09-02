@@ -38,17 +38,17 @@ function getDateLabel(value: string) {
 
 export function MessageDateDivider({ createdAt }: MessageDateDividerProps) {
   return (
-    <div className="my-6 flex items-center gap-4">
-      <div className="h-px flex-1 bg-border" />
+    <div className="my-4 flex items-center gap-2 sm:my-5 sm:gap-3 lg:my-6 lg:gap-4">
+      <div className="h-px min-w-2 flex-1 bg-border" />
 
       <time
-        className="shrink-0 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground"
+        className="shrink-0 rounded-full border bg-card px-2.5 py-1 text-[10px] font-medium text-muted-foreground sm:px-3 sm:text-xs"
         dateTime={createdAt}
       >
         {getDateLabel(createdAt)}
       </time>
 
-      <div className="h-px flex-1 bg-border" />
+      <div className="h-px min-w-2 flex-1 bg-border" />
     </div>
   );
 }

@@ -1,26 +1,33 @@
 'use client';
 
 import Link from 'next/link';
-import { type FormEvent, useMemo, useState } from 'react';
-import { ArrowLeftIcon } from '@/components/icons';
+import {
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
+  useMemo,
+  useState,
+} from 'react';
+
+import { ArrowLeftIcon, ShieldCheckIcon } from '@/components/icons';
+import { cn } from '@/lib/utils';
 
 type PasswordRequirementProps = {
   valid: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 function PasswordRequirement({ valid, children }: PasswordRequirementProps) {
+  const requirementClassName = cn(
+    'flex items-center gap-1.5',
+    valid ? 'text-primary' : 'text-muted-foreground',
+  );
+
   return (
-    <li
-      className={
-        valid
-          ? 'flex items-center gap-2 text-primary'
-          : 'flex items-center gap-2 text-muted-foreground'
-      }
-    >
+    <li className={requirementClassName}>
       <span
         aria-hidden="true"
-        className="flex size-5 items-center justify-center"
+        className="flex size-4 shrink-0 items-center justify-center"
       >
         {valid ? '✓' : '○'}
       </span>
@@ -51,7 +58,23 @@ export default function ChangePasswordPage() {
   const passwordsMatch =
     confirmedPassword.length > 0 && password === confirmedPassword;
 
+  const isPasswordMismatch = confirmedPassword.length > 0 && !passwordsMatch;
+
   const canSubmit = meetsRequirements && passwordsMatch;
+
+  function handlePasswordChange(event: ChangeEvent<HTMLInputElement>) {
+    setPassword(event.target.value);
+    setSubmitted(false);
+  }
+
+  function handleConfirmedPasswordChange(event: ChangeEvent<HTMLInputElement>) {
+    setConfirmedPassword(event.target.value);
+    setSubmitted(false);
+  }
+
+  function togglePasswordVisibility() {
+    setShowPassword((currentValue) => !currentValue);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -65,65 +88,51 @@ export default function ChangePasswordPage() {
 
   return (
     <>
-      <header className="flex min-h-16 items-center gap-3 border-b px-6 sm:px-8">
+      <header className="relative flex min-h-14 shrink-0 items-center justify-center border-b px-14 lg:min-h-16 lg:justify-start lg:gap-3 lg:px-8">
         <Link
           aria-label="Back to security settings"
-          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          className="absolute left-14 flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground lg:static"
           href="/profile/security"
         >
-          <ArrowLeftIcon />
+          <ArrowLeftIcon className="size-5" />
         </Link>
 
-        <h1 className="text-lg font-semibold">Change password</h1>
+        <h1 className="truncate text-base font-semibold sm:text-lg">
+          Change password
+        </h1>
       </header>
 
-      <section className="flex flex-1 overflow-y-auto px-6 py-8 sm:px-8">
+      <section className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
         <div className="mx-auto w-full max-w-xl">
-          <div className="rounded-2xl border bg-card px-6 py-8 text-card-foreground shadow-sm sm:px-8">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <svg
-                aria-hidden="true"
-                className="size-7"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M12 3 5 6v5c0 4.6 2.9 8.6 7 10 4.1-1.4 7-5.4 7-10V6l-7-3Z"
-                  stroke="currentColor"
-                  strokeLinejoin="round"
-                  strokeWidth="1.75"
-                />
-
-                <path
-                  d="m9.5 12 1.7 1.7 3.6-3.9"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.75"
-                />
-              </svg>
+          <div className="rounded-2xl border bg-card p-4 text-card-foreground shadow-sm sm:p-6 lg:p-8">
+            <div className="mx-auto flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary sm:size-14 sm:rounded-2xl">
+              <ShieldCheckIcon className="size-5 sm:size-7" />
             </div>
 
-            <div className="mt-6 text-center">
-              <h2 className="text-2xl font-semibold">Set a new password</h2>
+            <div className="mt-4 text-center sm:mt-6">
+              <h2 className="text-xl font-semibold sm:text-2xl">
+                Set a new password
+              </h2>
 
-              <p className="mt-2 text-muted-foreground">
+              <p className="mt-1.5 text-sm text-muted-foreground sm:mt-2 sm:text-base">
                 Choose a strong password for your account.
               </p>
             </div>
 
-            <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+            <form
+              className="mt-5 space-y-4 sm:mt-7 sm:space-y-5"
+              onSubmit={handleSubmit}
+            >
               <label className="block">
-                <span className="mb-2 block font-medium">New password</span>
+                <span className="mb-1.5 block text-sm font-medium sm:mb-2 sm:text-base">
+                  New password
+                </span>
 
                 <div className="relative">
                   <input
                     autoComplete="new-password"
-                    className="w-full rounded-xl border bg-background px-4 py-3 pr-14 outline-none transition focus:ring-2 focus:ring-ring/30"
-                    onChange={(event) => {
-                      setPassword(event.target.value);
-                      setSubmitted(false);
-                    }}
+                    className="min-h-10 w-full rounded-xl border bg-background px-3 py-2 pr-16 text-sm outline-none transition focus:ring-2 focus:ring-ring/30 sm:min-h-11 sm:px-4 sm:py-3 sm:pr-20 sm:text-base"
+                    onChange={handlePasswordChange}
                     placeholder="Choose a password"
                     required
                     type={showPassword ? 'text' : 'password'}
@@ -134,10 +143,8 @@ export default function ChangePasswordPage() {
                     aria-label={
                       showPassword ? 'Hide password' : 'Show password'
                     }
-                    className="absolute top-1/2 right-2 flex size-10 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                    onClick={() =>
-                      setShowPassword((currentValue) => !currentValue)
-                    }
+                    className="absolute inset-y-1 right-1 flex min-w-12 items-center justify-center rounded-lg px-2 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:min-w-16 sm:text-sm"
+                    onClick={togglePasswordVisibility}
                     type="button"
                   >
                     {showPassword ? 'Hide' : 'Show'}
@@ -145,10 +152,12 @@ export default function ChangePasswordPage() {
                 </div>
               </label>
 
-              <section className="rounded-xl bg-muted/60 p-4">
-                <h3 className="text-sm font-medium">Password must include:</h3>
+              <section className="rounded-xl bg-muted/60 p-3 sm:p-4">
+                <h3 className="text-xs font-medium sm:text-sm">
+                  Password must include:
+                </h3>
 
-                <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                <ul className="mt-2 grid gap-x-4 gap-y-1.5 text-xs sm:mt-3 sm:grid-cols-2 sm:gap-y-2 sm:text-sm">
                   <PasswordRequirement valid={requirements.minimumLength}>
                     8+ characters
                   </PasswordRequirement>
@@ -168,40 +177,37 @@ export default function ChangePasswordPage() {
               </section>
 
               <label className="block">
-                <span className="mb-2 block font-medium">
+                <span className="mb-1.5 block text-sm font-medium sm:mb-2 sm:text-base">
                   Confirm new password
                 </span>
 
                 <input
-                  aria-invalid={confirmedPassword.length > 0 && !passwordsMatch}
+                  aria-invalid={isPasswordMismatch}
                   autoComplete="new-password"
-                  className="w-full rounded-xl border bg-background px-4 py-3 outline-none transition focus:ring-2 focus:ring-ring/30 aria-invalid:border-destructive aria-invalid:ring-destructive/20"
-                  onChange={(event) => {
-                    setConfirmedPassword(event.target.value);
-                    setSubmitted(false);
-                  }}
+                  className="min-h-10 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring/30 aria-invalid:border-destructive aria-invalid:ring-destructive/20 sm:min-h-11 sm:px-4 sm:py-3 sm:text-base"
+                  onChange={handleConfirmedPasswordChange}
                   placeholder="Repeat your password"
                   required
                   type={showPassword ? 'text' : 'password'}
                   value={confirmedPassword}
                 />
 
-                {confirmedPassword.length > 0 && !passwordsMatch && (
-                  <p className="mt-2 text-sm text-destructive">
+                {isPasswordMismatch && (
+                  <p className="mt-1.5 text-xs text-destructive sm:mt-2 sm:text-sm">
                     Passwords do not match.
                   </p>
                 )}
               </label>
 
               {submitted && (
-                <p className="rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+                <p className="rounded-xl bg-muted px-3 py-2.5 text-xs text-muted-foreground sm:px-4 sm:py-3 sm:text-sm">
                   Password updating will be connected with the authentication
                   service later.
                 </p>
               )}
 
               <button
-                className="w-full rounded-xl bg-primary px-4 py-3 font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-10 w-full rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-11 sm:py-3 sm:text-base"
                 disabled={!canSubmit}
                 type="submit"
               >

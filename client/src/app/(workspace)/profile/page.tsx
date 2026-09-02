@@ -3,8 +3,19 @@
 import { useMutation } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useMemo, useState, useSyncExternalStore } from 'react';
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
+import {
+  ArrowLeftIcon,
+  ChevronRightIcon,
+  LogOutIcon,
+} from '@/components/icons';
 import { updateChatProfile } from '@/lib/api';
 import {
   clearChatProfile,
@@ -14,11 +25,6 @@ import {
   saveChatProfile,
   subscribeToProfile,
 } from '@/lib/profile-storage';
-import {
-  ArrowLeftIcon,
-  ChevronRightIcon,
-  LogOutIcon,
-} from '@/components/icons';
 
 type UpdateProfileInput = {
   profileId: string;
@@ -61,6 +67,7 @@ export default function ProfilePage() {
         identifier: profile?.identifier,
       });
 
+      setDisplayName('');
       setIsEditingName(false);
     },
   });
@@ -70,6 +77,12 @@ export default function ProfilePage() {
   }
 
   const currentProfile = profile;
+  const normalizedDisplayName = displayName.trim();
+
+  const canSaveDisplayName =
+    normalizedDisplayName.length >= 2 &&
+    normalizedDisplayName !== currentProfile.displayName &&
+    !updateProfile.isPending;
 
   function startEditing() {
     setDisplayName(currentProfile.displayName);
@@ -83,18 +96,21 @@ export default function ProfilePage() {
     updateProfile.reset();
   }
 
+  function handleDisplayNameChange(event: ChangeEvent<HTMLInputElement>) {
+    setDisplayName(event.target.value);
+    updateProfile.reset();
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const normalizedName = displayName.trim();
-
-    if (normalizedName.length < 2) {
+    if (!canSaveDisplayName) {
       return;
     }
 
     updateProfile.mutate({
       profileId: currentProfile.id,
-      displayName: normalizedName,
+      displayName: normalizedDisplayName,
     });
   }
 
@@ -105,92 +121,98 @@ export default function ProfilePage() {
 
   return (
     <>
-      <header className="flex min-h-16 items-center gap-3 border-b px-6 sm:px-8">
+      <header className="flex min-h-14 shrink-0 items-center gap-2 border-b px-4 sm:min-h-16 sm:gap-3 sm:px-6 md:px-8">
         <Link
           aria-label="Back to chat"
-          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
           href="/chat"
         >
-          <ArrowLeftIcon />
+          <ArrowLeftIcon className="size-5" />
         </Link>
 
-        <h1 className="text-lg font-semibold">Your profile</h1>
+        <h1 className="truncate text-base font-semibold sm:text-lg">
+          Your profile
+        </h1>
       </header>
 
-      <section className="flex-1 overflow-y-auto px-6 py-8 sm:px-8">
+      <main className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-8 md:px-8">
         <div className="mx-auto max-w-3xl">
-          <div className="flex items-center gap-4">
-            <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-xl font-semibold text-primary">
+          <section className="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-lg font-semibold text-primary sm:size-16 sm:text-xl">
               {getInitials(currentProfile.displayName)}
             </div>
 
-            <div className="min-w-0">
-              <h2 className="truncate text-2xl font-semibold">
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-xl font-semibold sm:text-2xl">
                 {currentProfile.displayName}
               </h2>
 
-              <p className="mt-1 truncate text-sm text-muted-foreground">
+              <p className="mt-0.5 truncate text-sm text-muted-foreground sm:mt-1">
                 {currentProfile.identifier ?? 'Sign-in identifier unavailable'}
               </p>
             </div>
 
-            <span className="ml-auto rounded-full bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent">
+            <span className="ml-auto shrink-0 rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent sm:py-1.5 sm:text-sm">
               Active
             </span>
-          </div>
+          </section>
 
-          <div className="mt-8 overflow-hidden rounded-2xl border bg-card text-card-foreground">
-            <section className="flex min-h-24 items-center gap-5 px-6 py-5">
+          <div className="mt-5 overflow-hidden rounded-xl border bg-card text-card-foreground sm:mt-8 sm:rounded-2xl">
+            <section className="flex min-h-20 items-center gap-4 px-4 py-4 sm:min-h-24 sm:gap-5 sm:px-6 sm:py-5">
               {isEditingName ? (
                 <form
-                  className="flex w-full items-end gap-3"
+                  className="flex w-full flex-col gap-3 sm:flex-row sm:items-end"
                   onSubmit={handleSubmit}
                 >
                   <label className="min-w-0 flex-1">
-                    <span className="mb-2 block text-sm font-medium">
+                    <span className="mb-1 block text-sm font-medium sm:mb-1.5">
                       Display name
                     </span>
 
                     <input
                       autoFocus
-                      className="w-full rounded-xl border bg-background px-4 py-2.5 outline-none transition focus:ring-2 focus:ring-ring/30"
+                      className="min-h-10 w-full rounded-xl border bg-background px-3.5 py-2 text-base outline-none transition focus:ring-2 focus:ring-ring/30 sm:min-h-11 sm:px-4 sm:text-sm"
                       maxLength={50}
                       minLength={2}
-                      onChange={(event) => setDisplayName(event.target.value)}
+                      onChange={handleDisplayNameChange}
                       required
                       value={displayName}
                     />
                   </label>
 
-                  <button
-                    className="rounded-xl bg-primary px-4 py-2.5 font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={updateProfile.isPending}
-                    type="submit"
-                  >
-                    {updateProfile.isPending ? 'Saving...' : 'Save'}
-                  </button>
+                  <div className="grid grid-cols-2 gap-2 sm:flex">
+                    <button
+                      className="min-h-10 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-11"
+                      disabled={!canSaveDisplayName}
+                      type="submit"
+                    >
+                      {updateProfile.isPending ? 'Saving...' : 'Save'}
+                    </button>
 
-                  <button
-                    className="rounded-xl border px-4 py-2.5 transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={updateProfile.isPending}
-                    onClick={cancelEditing}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
+                    <button
+                      className="min-h-10 rounded-xl border px-4 py-2 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-11"
+                      disabled={updateProfile.isPending}
+                      onClick={cancelEditing}
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </form>
               ) : (
                 <>
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-medium">Display name</h3>
+                    <h3 className="text-sm font-medium sm:text-base">
+                      Display name
+                    </h3>
 
-                    <p className="mt-1 truncate text-muted-foreground">
+                    <p className="mt-1 truncate text-sm text-muted-foreground sm:text-base">
                       {currentProfile.displayName}
                     </p>
                   </div>
 
                   <button
-                    className="font-medium text-primary transition hover:opacity-70"
+                    className="min-h-10 shrink-0 rounded-lg px-3 text-sm font-medium text-primary transition hover:bg-primary/10 sm:text-base"
                     onClick={startEditing}
                     type="button"
                   >
@@ -201,42 +223,41 @@ export default function ProfilePage() {
             </section>
 
             {updateProfile.error && (
-              <p className="border-t px-6 py-3 text-sm text-destructive">
+              <p
+                aria-live="polite"
+                className="border-t px-4 py-3 text-sm text-destructive sm:px-6"
+              >
                 {updateProfile.error.message}
               </p>
             )}
 
             <Link
-              className="flex min-h-24 w-full items-center gap-5 border-t px-6 py-5 text-left transition hover:bg-muted/40"
+              className="flex min-h-20 w-full items-center gap-4 border-t px-4 py-4 text-left transition hover:bg-muted/40 sm:min-h-24 sm:gap-5 sm:px-6 sm:py-5"
               href="/profile/security"
             >
               <div className="min-w-0 flex-1">
-                <h3 className="font-medium">Security</h3>
+                <h3 className="text-sm font-medium sm:text-base">Security</h3>
 
-                <p className="mt-1 text-muted-foreground">
+                <p className="mt-1 text-sm text-muted-foreground sm:text-base">
                   Manage your sign-in and account access
                 </p>
               </div>
 
-              <span
-                aria-hidden="true"
-                className="text-xl text-muted-foreground"
-              >
-                <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
-              </span>
+              <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
             </Link>
 
             <button
-              className="flex min-h-20 w-full items-center gap-3 border-t px-6 py-5 text-left font-medium text-destructive transition hover:bg-destructive/5"
+              className="flex min-h-16 w-full items-center gap-3 border-t px-4 py-4 text-left text-sm font-medium text-destructive transition hover:bg-destructive/5 sm:min-h-20 sm:px-6 sm:py-5 sm:text-base"
               onClick={handleLogout}
               type="button"
             >
               <LogOutIcon className="size-5 shrink-0" />
-              Log out
+
+              <span>Log out</span>
             </button>
           </div>
         </div>
-      </section>
+      </main>
     </>
   );
 }

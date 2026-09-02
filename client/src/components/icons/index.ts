@@ -9,3 +9,5 @@ export { SendIcon } from './send-icon';
 export { LogOutIcon } from './log-out-icon';
 export { MoreHorizontalIcon } from './more-horizontal-icon';
 export { PlusIcon } from './plus-icon';
+export { PanelLeftIcon } from './panel-left-icon';
+export { XIcon } from './x-icon';

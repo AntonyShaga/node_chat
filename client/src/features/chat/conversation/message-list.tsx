@@ -19,13 +19,15 @@ export function MessageList({
   onDelete,
 }: MessageListProps) {
   return (
-    <div>
+    <div className="min-w-0">
       {messages.map((message, index) => {
         const previousMessage = messages[index - 1];
 
         const showDateDivider =
           !previousMessage ||
           !isSameMessageDay(message.createdAt, previousMessage.createdAt);
+
+        const isOwnMessage = message.authorId === currentUserId;
 
         return (
           <Fragment key={message.id}>
@@ -34,7 +36,7 @@ export function MessageList({
             )}
 
             <MessageItem
-              isOwnMessage={message.authorId === currentUserId}
+              isOwnMessage={isOwnMessage}
               message={message}
               onDelete={onDelete}
               onEdit={onEdit}
