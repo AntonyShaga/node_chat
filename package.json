@@ -14,7 +14,6 @@
     "format:check": "prettier --ignore-path .prettierignore --check \"src/**/*.{js,ts}\"",
     "test:only": "mate-scripts test",
     "update": "mate-scripts update",
-    "postinstall": "npm run update",
     "test": "npm run lint && npm run test:only",
     "test:ws": "ts-node scripts/ws-smoke-test.ts"
   },
@@ -41,7 +40,7 @@
     "typescript": "5.5.4"
   },
   "mateAcademy": {
-    "projectType": "javascript"
+    "projectType": "typescript"
   },
   "dependencies": {
     "@nestjs/common": "12.0.1",
